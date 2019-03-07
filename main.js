@@ -9,8 +9,8 @@ inquirer
       name: 'operation',
       message: 'What do you want to do?',
       choices: [
-        { name: 'List all lights', value: 'listLights'},
         { name: 'Start task monitor', value: 'monitorTasks'},
+        { name: 'List all lights', value: 'listLights'},
         { name: 'Be done', value: 'done'},
         new inquirer.Separator(),
       ]
@@ -22,7 +22,30 @@ inquirer
         printAllLights();
         break;
       case 'monitorTasks':
-        startTaskMonitor();
+        inquirer
+          .prompt([
+            {
+              type: 'list',
+              name: 'color',
+              message: 'What color would you like as your default?',
+              choices: [
+                { name: 'White', value: 'white'},
+                { name: 'Off', value: 'off'},
+              ]
+            },
+          ])
+          .then(answer => {
+            switch (answer.color) {
+              case 'white':
+                startTaskMonitor();
+                break;
+              case 'off':
+                startTaskMonitor({ hue:0, brightness:0, saturation:0 });
+                break;
+              default:
+                break;
+            }
+          });
         break;
       default:
         break;
@@ -104,25 +127,45 @@ function printAllLights() {
 }
 
 
-function startTaskMonitor() {
+function startTaskMonitor(defaults) {
     let client = getDefaultClient();
     var checkIntervalSeconds = 10;
 
     setInterval(function () {
         console.log("checking");
         tasks.checkTaskStatusAsync()
-            .then(function (isRunning) {
-                var hue = 14988;
-                var saturation = 141;
-                if (!isRunning) {
+            .then(function (status) {
+                console.log(status);
+                var defaults = defaults || {
+                    hue: 14988,
+                    saturation: 141,
+                    brightness: 254
+                };
+                var hue = defaults.hue;
+                var saturation = defaults.saturation;
+                var brightness = defaults.brightness;
+                var alert = false;
+                if (status === "not-running") {
                     hue = 0;
                     saturation = 254;
-                }
-                client.lights.getById(3)
+                    brightness = 254;
+                    alert = true;
+                } else if (status === "long-running") {
+                    hue = 42475;
+                    saturation = 254;
+                    brightness = 254;
+                    alert = true;
+                } 
+                client.lights.getById(2)
                   .then(light => {
-                    light.brightness = 254;
+                    light.on = true;
+                    light.brightness = brightness;
                     light.hue        = hue;
                     light.saturation = saturation;
+                    if (alert)
+                        light.alert = "lselect";
+                    else
+                        light.alert = "none";
                  
                     return client.lights.save(light);
                   })

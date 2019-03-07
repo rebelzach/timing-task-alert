@@ -3,7 +3,7 @@ var fs = require("fs");
 
 module.exports = {
     checkTaskStatusAsync: function () {
-        var taskListPath = "~/task-monitor/export-output/daily-export.json";
+        var taskListPath = "~/timing-task-alert/export-output/daily-export.json";
         return osa((taskListPath) => {
             var startDate = new Date();
             startDate.setHours(0,0,0,0);
@@ -39,15 +39,26 @@ module.exports = {
         })(taskListPath).then(function (result) {
             var content = fs.readFileSync("export-output/daily-export.json");
             var tasks = JSON.parse(content);
-            console.log(tasks);
             var now = new Date((new Date()) - 65000); // Must look back at least a minute
             console.log(now);
-            var isTaskRunning = 
+            var sortedTasks = 
                 tasks
-                    .map(t => ({end: new Date(t.endDate) }))
-                    .some(t => t.end > now);
+                    .map(t => ({end: new Date(t.endDate), duration: t.duration }))
+                    .sort((a, b) => b.end - a.end);
+            console.log("sorted tasks:", sortedTasks);
+            var runningTask = sortedTasks
+                    .find(t => t.end > now);
+            console.log(runningTask);
 
-            return isTaskRunning
+            if (runningTask) {
+                if (runningTask.duration > 1800) {
+                    return "long-running";
+                } else {
+                    return "running";
+                }
+            }
+
+            return "not-running";
         });
     }
 }
